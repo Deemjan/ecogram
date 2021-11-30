@@ -1,0 +1,48 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    command: python manage.py run
+    ports:
+      - 8008:8008
+    environment:
+      BACKEND_PORT: 8008
+      BACKEND_HOST: 0.0.0.0
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecogram
+      POSTGRES_PORT: 5432
+      POSTGRES_HOST: db
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ecogram
+      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=db
+    ports:
+      - 5432:5432
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=1234
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+volumes:
+  postgres_data:

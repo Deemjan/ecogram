@@ -1,6 +1,7 @@
 import inspect
 from typing import Optional, NamedTuple, Type, List
 from datetime import datetime, date
+
 from phonenumbers import (
     NumberParseException,
     PhoneNumberFormat,
@@ -388,7 +389,10 @@ class MapPointBase(SQLModel):
     email: Optional[str] = None
     website: Optional[str] = None
     description: Optional[str] = None
-    coordinates: Point
+    coordinates: List[float]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class MapPointGet(SQLModel):

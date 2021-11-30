@@ -240,7 +240,7 @@ async def create_role(session: AsyncSession, roles: List[RoleCreate]):
     logger.debug(f"roles passed: {roles}")
     for role in roles:
         try:
-            if await get_role(role_name_filter=role.name):
+            if await get_role(session, role_name_filter=role.name):
                 return HTTPException(status_code=400, detail=f"{role.name} already exists")
             db_role = Role(name=role.name)
             session.add(db_role)

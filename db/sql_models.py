@@ -2,6 +2,7 @@ from typing import Optional, List
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
+
 from datetime import datetime
 
 from db.base_models import *
