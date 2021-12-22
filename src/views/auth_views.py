@@ -1,12 +1,10 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_login.exceptions import InvalidCredentialsException
 from jose import JWTError, jwt
-
-# from sqlmodel.ext.asyncio.session import AsyncSession
 
 from db.crud import *
 from db.dispatcher import get_session
@@ -40,16 +38,6 @@ async def get_current_user(session: AsyncSession = Depends(get_session), token: 
     return user
 
 
-# @auth_router.post("/login")
-# async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_session)):
-#     user = await auth_user(session, username=form_data.username, password=form_data.password)
-#     if not user:
-#         raise HTTPException(status_code=400, detail="Incorrect credentials")
-#     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#     access_token = create_access_token(data={"phone": user.phone_number}, expires_delta=access_token_expires)
-#     return {"access_token": access_token, "token_type": "bearer"}
-
-
 @auth_router.post("/auth/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_session)):
     phone = form_data.username
@@ -69,7 +57,7 @@ async def auth_user(session: AsyncSession, phone: str, password: str):
 
 
 @auth_router.post("/register")
-async def register(create_data: UserCreate = Depends(), # TODO переделать т.к дата прилетает не закодированная
+async def register(create_data: UserCreate = Depends(),
                    session: AsyncSession = Depends(get_session)):
     user = await get_user(session, phone=create_data.phone_number)
     if user:
@@ -79,8 +67,3 @@ async def register(create_data: UserCreate = Depends(), # TODO передела�
     if not user:
         raise HTTPException(status_code=500, detail="Couldn't create user")
     return JSONResponse(status_code=201, content="Created")
-
-
-@auth_router.get("/test")
-async def test_auth(user=Depends(get_current_user)):
-    return {"user": user}

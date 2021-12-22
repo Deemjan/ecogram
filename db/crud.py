@@ -1,4 +1,3 @@
-import datetime
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -18,29 +17,6 @@ from db.base_models import UserAchievementUpdate, RoleUpdate, RoleDelete, RoleCr
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-# async def get_users(session: AsyncSession, filters: UserGet):
-#     try:
-#         sql = select(User)
-#         if filters.id_filter or filters.username_filter or filters.phone_filter:
-#             return await get_user(session, filters.id_filter, filters.username_filter, filters.phone_filter)
-#         if filters.name_filter:
-#             sql = sql.where(User.name == filters.name_filter)
-#         if filters.last_name_filter:
-#             sql = sql.where(User.surname == filters.last_name_filter)
-#         if filters.birthday_filter_from:
-#             sql = sql.where(User.birthday >= filters.birthday_filter_from)
-#         if filters.birthday_filter_to:
-#             sql = sql.where(User.birthday >= filters.birthday_filter_to)
-#         if filters.role_filter:
-#             role = await get_role(session, role_name_filter=filters.role_filter)
-#             sql = sql.where(User.role == role[0])
-#         res = await session.exec(sql)
-#         return res.all()
-#     except Exception as e:
-#         logger.error(f"get_users exception {e}")
-#         return None
 
 
 async def get_users(session: AsyncSession, filters: UserGet):
@@ -805,16 +781,6 @@ async def delete_achievements(session: AsyncSession, achievements: List[Achievem
             logger.error(f"delete_achievement exception {e}")
     await session.commit()
     return deleted_achievements
-
-
-# async def create_point_thrash(session: AsyncSession, point_id: int, thrash_type_id: int):
-#     if not point_id and not thrash_type_id:
-#         return
-#     table = PointThrashLink(thrash_type_id=thrash_type_id, map_point_id=point_id)
-#     session.add(table)
-#     await session.commit()
-#     await session.refresh(table)
-#     return table
 
 
 async def get_point_thrash(session: AsyncSession, filters: PointThrashGet):
