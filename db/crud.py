@@ -40,6 +40,7 @@ async def get_users(session: AsyncSession, filters: UserGet):
         return res.all()
     except Exception as e:
         logger.error(f"get_users exception {e}")
+        await session.rollback()
         return None
 
 
@@ -68,11 +69,13 @@ async def update_user(session: AsyncSession, users: List[UserUpdate]):
             if user.role:
                 role = await get_role(session, role_name_filter=user.role)
                 if role:
-                    user_to_update.role = role
+                    user_to_update.role = role[0]
             session.add(user_to_update)
             updated_users.append(user_to_update)
         except Exception as e:
             logger.error(f"update_users exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_users
 
@@ -88,22 +91,28 @@ async def delete_user(session: AsyncSession, users: List[UserDelete]):
             deleted_users.append(user_to_delete)
         except Exception as e:
             logger.error(f"delete_map exception {e}")
+            await session.rollback()
     await session.commit()
     return deleted_users
 
 
 async def get_user(session: AsyncSession, user_id: int = None, username: str = None, phone: str = None) -> User:
-    sql = select(User)
-    if user_id:
-        sql = sql.where(User.id == user_id)
-    elif username:
-        sql = sql.where(User.username == username)
-    elif phone:
-        sql = sql.where(User.phone_number == phone)
-    else:
+    try:
+        sql = select(User)
+        if user_id:
+            sql = sql.where(User.id == user_id)
+        elif username:
+            sql = sql.where(User.username == username)
+        elif phone:
+            sql = sql.where(User.phone_number == phone)
+        else:
+            return None
+        res = await session.exec(sql)
+        return res.one_or_none()
+    except Exception as e:
+        logger.error(f'get_user exception {e}')
+        await session.rollback()
         return None
-    res = await session.exec(sql)
-    return res.one_or_none()
 
 
 async def create_user_achievements(session: AsyncSession, phone_number):
@@ -119,14 +128,19 @@ async def create_user_achievements(session: AsyncSession, phone_number):
 
 
 async def get_users_achievements(session: AsyncSession, user_id: int = None):
-    if not user_id:
+    try:
+        if not user_id:
+            return
+        sql = select(Achievement.id, Achievement.title, Achievement.description, UserAchievementLink.unlock_date,
+                     UserAchievementLink.unlocked) \
+            .join(Achievement, UserAchievementLink.achievement_id == Achievement.id) \
+            .where(UserAchievementLink.user_id == user_id)
+        res = await session.exec(sql)
+        return res.all()
+    except Exception as e:
+        logger.error(f'get_users_achievements exception {e}')
+        await session.rollback()
         return
-    sql = select(Achievement.id, Achievement.title, Achievement.description, UserAchievementLink.unlock_date,
-                 UserAchievementLink.unlocked) \
-        .join(Achievement, UserAchievementLink.achievement_id == Achievement.id) \
-        .where(UserAchievementLink.user_id == user_id)
-    res = await session.exec(sql)
-    return res.all()
 
 
 async def sync_users_achievements(session: AsyncSession, user_id: int):
@@ -148,6 +162,7 @@ async def sync_users_achievements(session: AsyncSession, user_id: int):
         return f"for user with id: {user_id} updated achievements with ids: {synced}"
     except Exception as e:
         logger.debug(f"sync_users_achievements exception {e}")
+        await session.rollback()
 
 
 async def update_users_achievements(session: AsyncSession, update_data: List[UserAchievementUpdate]):
@@ -168,6 +183,7 @@ async def update_users_achievements(session: AsyncSession, update_data: List[Use
         await session.commit()
         return updated
     except Exception as e:
+        await session.rollback()
         logger.debug(f"updating achievements exception {e}")
 
 
@@ -194,6 +210,7 @@ async def create_user(session: AsyncSession, user_data: UserCreate):
         return user
     except Exception as e:
         logger.debug(f"create_user exception {e}")
+        await session.rollback()
         return None
 
 
@@ -208,6 +225,7 @@ async def get_role(session: AsyncSession, role_id_filter: Optional[int] = None, 
         return roles.all()
     except Exception as e:
         logger.debug(f"get_role exception {e}")
+        await session.rollback()
         return None
 
 
@@ -223,6 +241,8 @@ async def create_role(session: AsyncSession, roles: List[RoleCreate]):
             created_roles.append(db_role)
         except Exception as e:
             logger.error(f"create_role exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return created_roles
 
@@ -240,6 +260,8 @@ async def update_role(session: AsyncSession, roles: List[RoleUpdate]):
             updated_roles.append(res)
         except Exception as e:
             logger.error(f"update_role exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_roles
 
@@ -258,6 +280,8 @@ async def delete_role(session: AsyncSession, roles: List[RoleDelete]):
             deleted_roles.append(res)
         except Exception as e:
             logger.error(f"delete_role exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return deleted_roles
 
@@ -274,6 +298,7 @@ async def get_thrash_type(session: AsyncSession,
         return types.all()
     except Exception as e:
         logger.debug(f"get_thrash_type exception {e}")
+        await session.rollback()
         return None
 
 
@@ -289,6 +314,8 @@ async def create_thrash_type(session: AsyncSession, thrash_types: List[ThrashTyp
             created_types.append(db_thrash_type)
         except Exception as e:
             logger.error(f"create_thrash_type exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return created_types
 
@@ -307,6 +334,8 @@ async def update_thrash_type(session: AsyncSession, types: List[ThrashTypeUpdate
             updated_types.append(res)
         except Exception as e:
             logger.error(f"update_thrash_type exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_types
 
@@ -326,6 +355,8 @@ async def delete_thrash_type(session: AsyncSession, types: List[ThrashTypeDelete
             deleted_thrash_types.append(res)
         except Exception as e:
             logger.error(f"delete_thrash_type exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return deleted_thrash_types
 
@@ -342,6 +373,7 @@ async def get_status(session: AsyncSession,
         return statuses.all()
     except Exception as e:
         logger.debug(f"get_status exception {e}")
+        await session.rollback()
         return None
 
 
@@ -357,6 +389,8 @@ async def create_status(session: AsyncSession, statuses: List[StatusCreate]):
             created_statuses.append(db_status)
         except Exception as e:
             logger.error(f"create_status exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return created_statuses
 
@@ -375,6 +409,8 @@ async def update_status(session: AsyncSession, statuses: List[StatusUpdate]):
             updated_statuses.append(res)
         except Exception as e:
             logger.error(f"update_status exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_statuses
 
@@ -394,6 +430,8 @@ async def delete_status(session: AsyncSession, statuses: List[StatusDelete]):
             deleted_statuses.append(res)
         except Exception as e:
             logger.error(f"delete_status exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return deleted_statuses
 
@@ -410,6 +448,7 @@ async def get_map(session: AsyncSession,
         return maps.one_or_none()
     except Exception as e:
         logger.debug(f"get_map exception {e}")
+        await session.rollback()
         return None
 
 
@@ -425,6 +464,8 @@ async def create_map(session: AsyncSession, maps: List[MapCreate]):
             created_maps.append(db_map)
         except Exception as e:
             logger.error(f"create_map exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return created_maps
 
@@ -443,6 +484,8 @@ async def update_map(session: AsyncSession, maps: List[MapUpdate]):
             updated_maps.append(res)
         except Exception as e:
             logger.error(f"update_map exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_maps
 
@@ -462,22 +505,29 @@ async def delete_map(session: AsyncSession, maps: List[MapDelete]):
             deleted_maps.append(res)
         except Exception as e:
             logger.error(f"delete_map exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return deleted_maps
 
 
 async def get_courier(session: AsyncSession, user_id: int = None, username: str = None, phone: str = None) -> Courier:
-    sql = select(Courier)
-    if user_id:
-        sql = sql.where(Courier.id == user_id)
-    elif username:
-        sql = sql.where(Courier.username == username)
-    elif phone:
-        sql = sql.where(Courier.phone_number == phone)
-    else:
+    try:
+        sql = select(Courier)
+        if user_id:
+            sql = sql.where(Courier.id == user_id)
+        elif username:
+            sql = sql.where(Courier.username == username)
+        elif phone:
+            sql = sql.where(Courier.phone_number == phone)
+        else:
+            return None
+        res = await session.exec(sql)
+        return res.one_or_none()
+    except Exception as e:
+        logger.error(f"get_courier exception {e}")
+        await session.rollback()
         return None
-    res = await session.exec(sql)
-    return res.one_or_none()
 
 
 async def create_courier(session: AsyncSession, data: CourierCreate):
@@ -492,6 +542,7 @@ async def create_courier(session: AsyncSession, data: CourierCreate):
         await session.refresh(courier)
         return courier
     except Exception as e:
+        await session.rollback()
         logger.debug(f"create_courier exception {e}")
         return None
 
@@ -521,6 +572,7 @@ async def get_couriers(session: AsyncSession, filters: CourierGet):
         return res.all()
     except Exception as e:
         logger.error(f"get_couriers exception {e}")
+        await session.rollback()
         return None
 
 
@@ -553,6 +605,8 @@ async def update_couriers(session: AsyncSession, couriers: List[CourierUpdate]):
             updated_couriers.append(courier_to_update)
         except Exception as e:
             logger.error(f"update_couriers exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return updated_couriers
 
@@ -568,18 +622,24 @@ async def delete_courier(session: AsyncSession, couriers: List[CourierDelete]):
             deleted_couriers.append(courier_to_delete)
         except Exception as e:
             logger.error(f"delete_courier exception {e}")
+            await session.rollback()
+            return
     await session.commit()
     return deleted_couriers
 
 
 async def get_map_point(session: AsyncSession, point_id: int = None) -> MapPoint:
-    sql = select(MapPoint)
-    if point_id:
-        sql = sql.where(MapPoint.id == point_id)
-    else:
-        return None
-    res = await session.exec(sql)
-    return res.one_or_none()
+    try:
+        sql = select(MapPoint)
+        if point_id:
+            sql = sql.where(MapPoint.id == point_id)
+        else:
+            return None
+        res = await session.exec(sql)
+        return res.one_or_none()
+    except Exception as e:
+        logger.error(f"get_map_point exception {e}")
+        await session.rollback()
 
 
 async def create_map_point(session: AsyncSession, data: MapPointCreate):
@@ -608,6 +668,7 @@ async def create_map_point(session: AsyncSession, data: MapPointCreate):
         await session.refresh(map_point)
         return map_point
     except Exception as e:
+        await session.rollback()
         logger.debug(f"create_map_point exception {e}")
         return None
 
@@ -638,6 +699,7 @@ async def get_map_points(session: AsyncSession, filters: MapPointGet):
         res = await session.exec(sql)
         return res.all()
     except Exception as e:
+        await session.rollback()
         logger.error(f"get_map_points exception {e}")
         return None
 
@@ -679,7 +741,9 @@ async def update_map_points(session: AsyncSession, map_points: List[MapPointUpda
             session.add(point_to_update)
             updated_points.append(point_to_update)
         except Exception as e:
+            await session.rollback()
             logger.error(f"update_map_points exception {e}")
+            return
     await session.commit()
     return updated_points
 
@@ -694,7 +758,9 @@ async def delete_map_points(session: AsyncSession, map_points: List[MapPointDele
             await session.delete(point_to_delete)
             deleted_points.append(point_to_delete)
         except Exception as e:
+            await session.rollback()
             logger.error(f"delete_map_points exception {e}")
+            return
     await session.commit()
     return deleted_points
 
@@ -711,6 +777,7 @@ async def get_achievements(session: AsyncSession,
         achievements = await session.exec(sql)
         return achievements.all()
     except Exception as e:
+        await session.rollback()
         logger.debug(f"get_achievement exception {e}")
         return
 
@@ -728,6 +795,7 @@ async def create_achievements(session: AsyncSession, achievements: List[Achievem
             session.add(achievement_to_create)
             created.append(achievement_to_create)
         except Exception as e:
+            await session.rollback()
             logger.error(f"create_achievement exception {e}")
     await session.commit()
     try:
@@ -735,7 +803,9 @@ async def create_achievements(session: AsyncSession, achievements: List[Achievem
         for user in users:
             await sync_users_achievements(session, user_id=user.id)
     except Exception as e:
+        await session.rollback()
         logger.debug(f"error when updating users achievements {e}")
+        return
     return created
 
 
@@ -757,6 +827,7 @@ async def update_achievements(session: AsyncSession, achievements: List[Achievem
             updated.append(res)
         except Exception as e:
             logger.error(f"update_achievement exception {e}")
+            await session.rollback()
             continue
     await session.commit()
     return updated
@@ -812,6 +883,7 @@ async def get_point_thrash(session: AsyncSession, filters: PointThrashGet):
         res = await session.exec(sql)
         return res.all()
     except Exception as e:
+        await session.rollback()
         logger.error(f"get_point_thrash exception {e}")
 
 
@@ -857,6 +929,7 @@ async def get_delivery_requests(session: AsyncSession, filters: DeliveryRequestG
         res = await session.exec(sql)
         return res.all()
     except Exception as e:
+        await session.rollback()
         logger.error(f"get_delivery_request exception {e}")
 
 
@@ -890,7 +963,9 @@ async def update_delivery_requests(session: AsyncSession, del_requests: List[Del
             session.add(req_to_update)
             updated_requests.append(req_to_update)
         except Exception as e:
+            await session.rollback()
             logger.error(f"update_delivery_requests exception {e}")
+            return
     await session.commit()
     return updated_requests
 
@@ -909,6 +984,7 @@ async def delete_delivery_requests(session: AsyncSession, requests: List[Deliver
             await session.delete(res)
             deleted_requests.append(res)
         except Exception as e:
+            await session.rollback()
             logger.error(f"delete_delivery_requests exception {e}")
     await session.commit()
     return deleted_requests
@@ -930,4 +1006,5 @@ async def create_delivery_request(session: AsyncSession, request: DeliveryReques
         await session.refresh(request_to_create)
         return request_to_create
     except Exception as e:
+        await session.rollback()
         logger.error(f"create_achievement exception {e}")

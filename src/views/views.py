@@ -187,7 +187,7 @@ async def courier_create(update_data: CourierCreate,
                          session: AsyncSession = Depends(get_session)):
     query = await crud.create_courier(session, update_data)
     if query:
-        return JSONResponse(status_code=201, content=f"created {query}")
+        return JSONResponse(status_code=201, content={"created": query})
     raise HTTPException(status_code=400, detail="something went wrong")
 
 
@@ -246,7 +246,7 @@ async def map_point_create(update_data: MapPointCreate,
                            session: AsyncSession = Depends(get_session)):
     query = await crud.create_map_point(session, update_data)
     if query:
-        return JSONResponse(status_code=201, content=f"created {query}")
+        return JSONResponse(status_code=201, content={"created": query})
     raise HTTPException(status_code=400, detail="something went wrong")
 
 
@@ -329,7 +329,9 @@ async def delivery_request_create(data: DeliveryRequestCreate,
                                   session: AsyncSession = Depends(get_session)):
     query = await crud.create_delivery_request(session, data)
     if query:
-        return JSONResponse(status_code=201, content=f"created {query}")
+        query = query.dict()
+        query['create_date'] = query['create_date'].strftime('%d-%m-%Y')
+        return JSONResponse(status_code=201, content={"created": query})
     raise HTTPException(status_code=400, detail="something went wrong")
 
 
