@@ -1,20 +1,18 @@
+import logging
 from typing import List, Optional
 
 from fastapi import HTTPException
 from sqlmodel import select
-
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.sql_models import User, Achievement, Role, UserAchievementLink, ThrashType, Status, Map, Courier, MapPoint, \
-    PointThrashLink, DeliveryRequest, DeliveryThrashLink
 from db.base_models import UserAchievementUpdate, RoleUpdate, RoleDelete, RoleCreate, ThrashTypeCreate, \
     ThrashTypeUpdate, ThrashTypeDelete, StatusCreate, StatusUpdate, StatusDelete, MapCreate, MapUpdate, MapDelete, \
     CourierCreate, UserCreate, UserGet, UserDelete, UserUpdate, CourierGet, CourierUpdate, CourierDelete, \
     MapPointCreate, MapPointGet, MapPointUpdate, MapPointDelete, AchievementCreate, AchievementUpdate, \
     AchievementDelete, PointThrashGet, DeliveryRequestGet, DeliveryRequestUpdate, DeliveryRequestDelete, \
     DeliveryRequestCreate
-
-import logging
+from db.sql_models import User, Achievement, Role, UserAchievementLink, ThrashType, Status, Map, Courier, MapPoint, \
+    PointThrashLink, DeliveryRequest, DeliveryThrashLink
 
 logger = logging.getLogger(__name__)
 
@@ -889,12 +887,23 @@ async def get_point_thrash(session: AsyncSession, filters: PointThrashGet):
 
 async def get_delivery_requests(session: AsyncSession, filters: DeliveryRequestGet):
     try:
-        sql = select(DeliveryRequest.address.label("delivery_address"), DeliveryRequest.create_date,
-                     ThrashType.thrash_type, Status.status_name.label("status"),
-                     Courier.name.label("courier_name"), Courier.surname.label("courier_surname"),
+        sql = select(DeliveryRequest.id,
+                     DeliveryRequest.address.label("delivery_address"),
+                     DeliveryRequest.create_date,
+                     DeliveryRequest.price,
+
+                     ThrashType.thrash_type,
+
+                     Status.status_name.label("status"),
+
+                     Courier.name.label("courier_name"),
+                     Courier.surname.label("courier_surname"),
                      Courier.phone_number.label("courier_phone_number"),
-                     User.name.label("user_name"), User.surname.label("user_surname"),
-                     User.phone_number.label("user_phone_number"), User.username.label("user_username")) \
+
+                     User.name.label("user_name"),
+                     User.surname.label("user_surname"),
+                     User.phone_number.label("user_phone_number"),
+                     User.username.label("user_username")) \
             .outerjoin_from(DeliveryRequest, DeliveryThrashLink) \
             .outerjoin(ThrashType).outerjoin(Courier).outerjoin(Status).outerjoin(User)
 
@@ -1001,10 +1010,17 @@ async def create_delivery_request(session: AsyncSession, request: DeliveryReques
         request_to_create.req_courier = courier
         request_to_create.create_date = request.create_date
         request_to_create.address = request.address
+        request_status = await get_status(session, status_name_filter="в ожидании")
+        if request_status is not None:
+            request_to_create.status = request_status[0]
+        for thrash_type in request.thrash_types:
+            thrash_obj = await get_thrash_type(session, thrash_type_name_filter=thrash_type)
+            if thrash_obj is not None:
+                request_to_create.thrash_types.append(thrash_obj[0])
         session.add(request_to_create)
         await session.commit()
         await session.refresh(request_to_create)
         return request_to_create
     except Exception as e:
         await session.rollback()
-        logger.error(f"create_achievement exception {e}")
+        logger.error(f"create_delivery_request exception {e}")
