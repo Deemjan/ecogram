@@ -948,10 +948,11 @@ async def update_delivery_requests(session: AsyncSession, del_requests: List[Del
         try:
             if not req.id_req:
                 continue
-            req_to_update = await get_delivery_requests(session, filters=DeliveryRequestGet(id_filter=req.id_req))
+            req_to_update = select(DeliveryRequest).where(DeliveryRequest.id == req.id_req)
+            req_to_update = await session.exec(req_to_update)
+            req_to_update = req_to_update.one()
             if not req_to_update:
                 continue
-            req_to_update = req_to_update[0]
             if req.address:
                 req_to_update.address = req.address
             if req.create_date:
@@ -959,15 +960,17 @@ async def update_delivery_requests(session: AsyncSession, del_requests: List[Del
             if req.status:
                 status = await get_status(session, status_name_filter=req.status)
                 if status:
-                    req_to_update.status = status
+                    req_to_update.status = status[0]
             if req.courier_phone:
                 courier = await get_courier(session, phone=req.courier_phone)
                 if courier:
-                    req_to_update.courier = courier
+                    req_to_update.req_courier = courier
             if req.user_phone:
                 user = await get_user(session, phone=req.user_phone)
                 if user:
-                    req_to_update.user = user
+                    req_to_update.req_user = user
+            if req.price is not None:
+                req_to_update.price = req.price
 
             session.add(req_to_update)
             updated_requests.append(req_to_update)
@@ -1010,6 +1013,7 @@ async def create_delivery_request(session: AsyncSession, request: DeliveryReques
         request_to_create.req_courier = courier
         request_to_create.create_date = request.create_date
         request_to_create.address = request.address
+        request_to_create.price = request.price
         request_status = await get_status(session, status_name_filter="в ожидании")
         if request_status is not None:
             request_to_create.status = request_status[0]

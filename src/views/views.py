@@ -187,6 +187,7 @@ async def courier_create(update_data: CourierCreate,
                          session: AsyncSession = Depends(get_session)):
     query = await crud.create_courier(session, update_data)
     if query:
+        query = query.dict()
         return JSONResponse(status_code=201, content={"created": query})
     raise HTTPException(status_code=400, detail="something went wrong")
 
