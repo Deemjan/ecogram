@@ -1,61 +1,57 @@
 import inspect
-from typing import Optional, NamedTuple, Type, List
 from datetime import datetime, date
+from typing import Optional, NamedTuple, Type, List
 
+import pytz
+from fastapi import Form
 from phonenumbers import (
     NumberParseException,
     PhoneNumberFormat,
-    PhoneNumberType,
     format_number,
-    is_valid_number,
-    number_type,
     parse as parse_phone_number,
 )
-
-from fastapi import Form
-from sqlmodel import SQLModel
 from pydantic import validator, ValidationError
 from pydantic.fields import ModelField
-import pytz
+from sqlmodel import SQLModel
 
 from src.views.security import get_password_hash
 
 utc = pytz.UTC
 
 
-def as_form(cls: Type[SQLModel]):
-    new_parameters = []
-
-    for field_name, model_field in cls.__fields__.items():
-        model_field: ModelField  # type: ignore
-
-        if not model_field.required:
-            new_parameters.append(
-                inspect.Parameter(
-                    model_field.alias,
-                    inspect.Parameter.POSITIONAL_ONLY,
-                    default=Form(model_field.default),
-                    annotation=model_field.outer_type_,
-                )
-            )
-        else:
-            new_parameters.append(
-                inspect.Parameter(
-                    model_field.alias,
-                    inspect.Parameter.POSITIONAL_ONLY,
-                    default=Form(...),
-                    annotation=model_field.outer_type_,
-                )
-            )
-
-    async def as_form_func(**data):
-        return cls(**data)
-
-    sig = inspect.signature(as_form_func)
-    sig = sig.replace(parameters=new_parameters)
-    as_form_func.__signature__ = sig  # type: ignore
-    setattr(cls, 'as_form', as_form_func)
-    return cls
+# def as_form(cls: Type[SQLModel]):
+#     new_parameters = []
+#
+#     for field_name, model_field in cls.__fields__.items():
+#         model_field: ModelField  # type: ignore
+#
+#         if not model_field.required:
+#             new_parameters.append(
+#                 inspect.Parameter(
+#                     model_field.alias,
+#                     inspect.Parameter.POSITIONAL_ONLY,
+#                     default=Form(model_field.default),
+#                     annotation=model_field.outer_type_,
+#                 )
+#             )
+#         else:
+#             new_parameters.append(
+#                 inspect.Parameter(
+#                     model_field.alias,
+#                     inspect.Parameter.POSITIONAL_ONLY,
+#                     default=Form(...),
+#                     annotation=model_field.outer_type_,
+#                 )
+#             )
+#
+#     async def as_form_func(**data):
+#         return cls(**data)
+#
+#     sig = inspect.signature(as_form_func)
+#     sig = sig.replace(parameters=new_parameters)
+#     as_form_func.__signature__ = sig  # type: ignore
+#     setattr(cls, 'as_form', as_form_func)
+#     return cls
 
 
 class Point(NamedTuple):
@@ -164,7 +160,6 @@ class UserBase(PersonBase):
     pass
 
 
-@as_form
 class UserCreate(PersonBase):
     password: str
 
@@ -308,6 +303,7 @@ class CourierDelete(SQLModel):
 
 class DeliveryRequestBase(SQLModel):
     address: str
+    price: float
     create_date: datetime
 
 
@@ -316,6 +312,11 @@ class DeliveryRequestCreate(SQLModel):
     user_phone: str
     address: str
     create_date: datetime
+    thrash_types: List[str]
+    price: Optional[str] = 0.0
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class DeliveryRequestGet(SQLModel):
@@ -342,6 +343,7 @@ class DeliveryRequestUpdate(SQLModel):
     status: Optional[str] = None
     courier_phone: Optional[str] = None
     user_phone: Optional[str] = None
+    price: Optional[str] = 0.0
 
 
 class DeliveryRequestDelete(SQLModel):

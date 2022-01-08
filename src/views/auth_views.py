@@ -57,7 +57,7 @@ async def auth_user(session: AsyncSession, phone: str, password: str):
 
 
 @auth_router.post("/register")
-async def register(create_data: UserCreate = Depends(),
+async def register(create_data: UserCreate,
                    session: AsyncSession = Depends(get_session)):
     user = await get_user(session, phone=create_data.phone_number)
     if user:
