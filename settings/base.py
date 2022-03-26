@@ -11,10 +11,9 @@ class DBConfig:
     DB_PORT = os.getenv("POSTGRES_PORT") or 5432
     DB_DATABASE = os.getenv("POSTGRES_DB") or "ecogram"
     DB_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"
-    #DB_URL = 'postgresql+psycopg2://postgres:postgres@localhost:5432/ecogram'
 
 
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

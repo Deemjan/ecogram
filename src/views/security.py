@@ -3,6 +3,7 @@ from typing import Optional
 
 from jose import jwt
 from passlib.context import CryptContext
+
 from settings import HASH_SECRET_KEY, HASH_ALG
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

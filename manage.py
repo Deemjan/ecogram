@@ -1,9 +1,10 @@
-import click
-
-from settings import BACKEND_HOST, BACKEND_PORT
-import uvicorn
 import logging
+
+import click
+import uvicorn
+
 from app.main import app
+from settings import BACKEND_HOST, BACKEND_PORT
 
 logger = logging.getLogger(__name__)
 

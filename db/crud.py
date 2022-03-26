@@ -1,17 +1,17 @@
 import logging
 from typing import List, Optional
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from db.base_models import UserAchievementUpdate, RoleUpdate, RoleDelete, RoleCreate, ThrashTypeCreate, \
+from db.models.base_models import UserAchievementUpdate, RoleUpdate, RoleDelete, RoleCreate, ThrashTypeCreate, \
     ThrashTypeUpdate, ThrashTypeDelete, StatusCreate, StatusUpdate, StatusDelete, MapCreate, MapUpdate, MapDelete, \
     CourierCreate, UserCreate, UserGet, UserDelete, UserUpdate, CourierGet, CourierUpdate, CourierDelete, \
     MapPointCreate, MapPointGet, MapPointUpdate, MapPointDelete, AchievementCreate, AchievementUpdate, \
     AchievementDelete, PointThrashGet, DeliveryRequestGet, DeliveryRequestUpdate, DeliveryRequestDelete, \
     DeliveryRequestCreate
-from db.sql_models import User, Achievement, Role, UserAchievementLink, ThrashType, Status, Map, Courier, MapPoint, \
+from db.models.sql_models import User, Achievement, Role, UserAchievementLink, ThrashType, Status, Map, Courier, MapPoint, \
     PointThrashLink, DeliveryRequest, DeliveryThrashLink
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,6 @@ async def get_users(session: AsyncSession, filters: UserGet):
             sql = sql.where(User.birthday >= filters.birthday_filter_to)
         if filters.role_filter:
             role = await get_role(session, role_name_filter=filters.role_filter)
-            sql = sql.where(User.role == role[0])
         res = await session.exec(sql)
         return res.all()
     except Exception as e:
@@ -196,6 +195,8 @@ async def create_user(session: AsyncSession, user_data: UserCreate):
             user.role = role[0]
         else:
             role = await get_role(session, role_name_filter="basic_user")
+            if not role:
+                role = await create_role(session, ['basic_user'])
             role = role[0]
             user.role = role
         for key, value in user_data.items():
@@ -233,7 +234,7 @@ async def create_role(session: AsyncSession, roles: List[RoleCreate]):
     for role in roles:
         try:
             if await get_role(session, role_name_filter=role.name):
-                return HTTPException(status_code=400, detail=f"{role.name} already exists")
+                return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{role.name} already exists")
             db_role = Role(name=role.name)
             session.add(db_role)
             created_roles.append(db_role)
@@ -306,7 +307,7 @@ async def create_thrash_type(session: AsyncSession, thrash_types: List[ThrashTyp
     for thrash_type in thrash_types:
         try:
             if await get_thrash_type(session, thrash_type_name_filter=thrash_type.thrash_type):
-                return HTTPException(status_code=400, detail=f"{thrash_type.thrash_type} already exists")
+                return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{thrash_type.thrash_type} already exists")
             db_thrash_type = ThrashType(thrash_type=thrash_type.thrash_type)
             session.add(db_thrash_type)
             created_types.append(db_thrash_type)
@@ -378,11 +379,11 @@ async def get_status(session: AsyncSession,
 async def create_status(session: AsyncSession, statuses: List[StatusCreate]):
     created_statuses = []
     logger.debug(f"statuses passed: {statuses}")
-    for status in statuses:
+    for req_status in statuses:
         try:
-            if await get_status(session, status_name_filter=status.status_name):
-                return HTTPException(status_code=400, detail=f"{status.status_name} already exists")
-            db_status = Status(status_name=status.status_name)
+            if await get_status(session, status_name_filter=req_status.status_name):
+                return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{req_status.status_name} already exists")
+            db_status = Status(status_name=req_status.status_name)
             session.add(db_status)
             created_statuses.append(db_status)
         except Exception as e:
@@ -456,7 +457,7 @@ async def create_map(session: AsyncSession, maps: List[MapCreate]):
     for map in maps:
         try:
             if await get_map(session, map_city_filter=map.city):
-                return HTTPException(status_code=400, detail=f"{map.city} already exists")
+                return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{map.city} already exists")
             db_map = Map(city=map.city)
             session.add(db_map)
             created_maps.append(db_map)
@@ -786,7 +787,7 @@ async def create_achievements(session: AsyncSession, achievements: List[Achievem
         try:
             ach_exists = await get_achievements(session, title_filter=achievement.title)
             if ach_exists is not None and len(ach_exists) > 0:
-                return HTTPException(status_code=400, detail=f"{achievement.title} already exists")
+                return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{achievement.title} already exists")
             achievement_to_create = Achievement()
             achievement_to_create.title = achievement.title
             achievement_to_create.description = achievement.description
@@ -1006,7 +1007,7 @@ async def create_delivery_request(session: AsyncSession, request: DeliveryReques
     try:
         user = await get_user(session, phone=request.user_phone)
         courier = await get_courier(session, phone=request.courier_phone)
-        if not user and not courier:
+        if not courier:
             return None
         request_to_create = DeliveryRequest()
         request_to_create.req_user = user

@@ -1,7 +1,7 @@
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship
 
-from db.base_models import *
+from db.models.base_models import *
 
 
 class UserAchievementLink(SQLModel, table=True):

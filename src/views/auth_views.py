@@ -1,15 +1,15 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_login.exceptions import InvalidCredentialsException
 from jose import JWTError, jwt
 
+from db.models.base_models import TokenData
 from db.crud import *
 from db.dispatcher import get_session
 from settings import HASH_ALG, HASH_SECRET_KEY
-from db.base_models import TokenData, UserCreate
 from src.views.security import get_password_hash, create_access_token, verify_password
 
 auth_router = APIRouter()
@@ -24,17 +24,17 @@ async def get_current_user(session: AsyncSession = Depends(get_session), token: 
         exp = payload.get("exp")
         logger.debug(f"current user phone: {phone}")
         if not phone:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         token_data = TokenData(phone=phone, expires=exp)
         logger.debug(f"token_data: {token_data}")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     user = await get_user(session, phone=token_data.phone)
     if user:
         return user
     if any([user is None, exp is None, datetime.utcnow() > token_data.expires]):
         logger.debug(f"{user}, {exp}, {datetime.utcnow() > token_data.expires}")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return user
 
 
@@ -61,9 +61,9 @@ async def register(create_data: UserCreate,
                    session: AsyncSession = Depends(get_session)):
     user = await get_user(session, phone=create_data.phone_number)
     if user:
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
     create_data.password = get_password_hash(create_data.password)
     user = await create_user(session, create_data)
     if not user:
-        raise HTTPException(status_code=500, detail="Couldn't create user")
-    return JSONResponse(status_code=201, content="Created")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Couldn't create user")
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content="Created")
