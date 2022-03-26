@@ -1,3 +1,5 @@
+# Бэкенд приложения экограм
+
 # Команды alembic
 
 alembic init -t async migrations Для инициализации
